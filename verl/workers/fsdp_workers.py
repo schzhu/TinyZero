@@ -446,6 +446,60 @@ class ActorRolloutRefWorker(Worker):
         return output
 
     @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
+    def compute_next_token_log_prob(self, prompt: DataProto, target_token: str):
+        """
+        Given a prompt (as a DataProto) and a target token (string), compute the log probability
+        of the target token as the next token.
+        """
+        # Make sure the prompt is on GPU
+        prompt = prompt.to('cuda')
+        # Get the input_ids (assume shape: [batch_size, seq_length])
+        input_ids = prompt.batch['input_ids']
+        # For simplicity, use the first sample in the batch
+        input_ids = input_ids[0:1]
+
+        # Ensure the model is in eval mode
+        self.actor_module_fsdp.eval()
+        with torch.no_grad():
+            outputs = self.actor_module_fsdp(input_ids)
+            # outputs.logits has shape [1, seq_length, vocab_size]
+            logits = outputs.logits
+            # Take the logits for the last position
+            last_logits = logits[:, -1, :]  # shape: [1, vocab_size]
+            log_probs = F.log_softmax(last_logits, dim=-1)
+            # Use the tokenizer to encode the target token.
+            # (Adjust the string as needed; many HF tokenizers expect a leading space.)
+            target_token_id = self.tokenizer.encode(target_token, add_special_tokens=False)[0]
+            lp = log_probs[0, target_token_id].item()
+        return lp
+
+    @register(dispatch_mode=Dispatch.ONE_TO_ALL)
+    def compute_next_token_probability(self, prompt: str, target_token: str) -> float:
+        """
+        Computes the probability that the model will output the target_token as the next token
+        given the provided prompt.
+        """
+        # Tokenize the prompt; note that we do not add any extra special tokens here.
+        input_ids = self.tokenizer.encode(prompt, return_tensors="pt")
+        # Move the tensor to the same device as the model.
+        device = next(self.actor_module_fsdp.parameters()).device
+        input_ids = input_ids.to(device)
+
+        with torch.no_grad():
+            # Run a forward pass using the actor (or rollout) model.
+            outputs = self.actor_module_fsdp(input_ids)
+
+        # Get the logits for the next-token prediction (last time step)
+        # outputs.logits has shape (batch_size, sequence_length, vocab_size)
+        last_logits = outputs.logits[:, -1, :]
+        # Compute probabilities using softmax.
+        probs = torch.softmax(last_logits, dim=-1)
+        # Get the token id for the target token (for example, "wait").
+        target_id = self.tokenizer.encode(target_token, add_special_tokens=False)[0]
+        # Return the probability (as a float) that target_token is the next token.
+        return probs[0, target_id].item()
+
+    @register(dispatch_mode=Dispatch.DP_COMPUTE_PROTO)
     def compute_ref_log_prob(self, data: DataProto):
         assert self._is_ref
 

@@ -35,6 +35,8 @@ from verl.single_controller.ray.base import create_colocated_worker_cls
 from verl.trainer.ppo import core_algos
 from verl.utils.seqlen_balancing import get_seqlen_balanced_partitions, log_seqlen_unbalance
 
+import ray
+
 WorkerType = Type[Worker]
 
 
@@ -390,6 +392,41 @@ class RayPPOTrainer(object):
             self.config.critic.optim.total_training_steps = total_training_steps
 
     def _validate(self):
+
+        metric_dict = {}
+        # --- NEW EXTRA TEST: Next Token "wait" Probability ---
+        # for inst-tuned llm
+        # special_prompt = "<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\nUsing the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>.<|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
+        # for base llm
+        special_prompt = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. User: Using the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>. Assistant: Let me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
+        special_token = "Wait"
+        # If the actor rollout worker is a local function, call it directly.
+        wait_prob = self.actor_rollout_wg.compute_next_token_probability(special_prompt, special_token)
+        wait_prob = np.mean(wait_prob)
+        metric_dict['val/next_token_prob/wait_after_prompt'] = wait_prob
+        print(f"Test: P('{special_token}' | '{special_prompt}') \n= {wait_prob}")
+        # --- END EXTRA TEST ---
+
+        # # --- EXTRA TEST: Compute likelihood of "wait" after a fixed prompt ---
+        # extra_prompt = "Here is my first try"
+        # # Tokenize the prompt using your existing tokenizer (make sure to adjust for spacing if needed)
+        # encoded = self.tokenizer(extra_prompt, return_tensors="pt")
+        # input_ids = encoded.input_ids.to("cuda" if torch.cuda.is_available() else "cpu")
+        # attention_mask = encoded.attention_mask.to("cuda" if torch.cuda.is_available() else "cpu")
+        # # Compute position ids (assuming your model requires them)
+        # from verl.utils.model import compute_position_id_with_mask
+        # position_ids = compute_position_id_with_mask(attention_mask)
+        # # Create a DataProto for the prompt
+        # extra_dp = DataProto.from_dict(tensors={
+        #     "input_ids": input_ids,
+        #     "attention_mask": attention_mask,
+        #     "position_ids": position_ids
+        # })
+        # # Call the remote method on the actor rollout worker group to compute the next token log probability.
+        # # (Adjust the target token as needed—for many tokenizers, a leading space is required.)
+        # lp_wait = ray.get(self.actor_rollout_wg.compute_next_token_log_prob.remote(extra_dp, " wait"))
+        # metric_dict["val/next_token_logprob_wait"] = lp_wait
+
         reward_tensor_lst = []
         data_source_lst = []
         for test_data in self.val_dataloader:
@@ -435,7 +472,7 @@ class RayPPOTrainer(object):
                 data_source_reward[data_source] = []
             data_source_reward[data_source].append(reward_tensor[i].item())
 
-        metric_dict = {}
+        # metric_dict = {}
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
 
