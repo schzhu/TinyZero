@@ -47,15 +47,33 @@ if __name__ == '__main__':
     # Convert to Dataset
     dataset = Dataset.from_pandas(df)
 
-    # Split into train and test
+    # Split into train and test based on train_ratio
     dataset = dataset.shuffle(seed=42)
-    train_size = int(len(dataset) * args.train_ratio)
-    test_size = len(dataset) - train_size
+    total_size = len(dataset)
 
-    train_dataset = dataset.select(range(train_size))
-    test_dataset = dataset.select(range(train_size, len(dataset)))
+    # Handle special cases where we want only train or only test
+    if args.train_ratio == 1.0:
+        train_size = total_size
+        test_size = 0
+        train_dataset = dataset
+        test_dataset = dataset.select([])  # Empty dataset
+        print(f"Using all {train_size} samples for training (train_ratio=1.0)")
+    elif args.train_ratio == 0.0:
+        train_size = 0
+        test_size = total_size
+        train_dataset = dataset.select([])  # Empty dataset
+        test_dataset = dataset
+        print(f"Using all {test_size} samples for testing (train_ratio=0.0)")
+    else:
+        # Regular split
+        train_size = int(total_size * args.train_ratio)
+        test_size = total_size - train_size
 
-    print(f"Split into {len(train_dataset)} training samples and {len(test_dataset)} test samples")
+        train_dataset = dataset.select(range(train_size))
+        test_dataset = dataset.select(range(train_size, total_size))
+
+        print(f"Split into {train_size} training samples and {test_size} test samples")
+
 
     def make_map_fn(split):
         def process_fn(example, idx):
@@ -81,7 +99,9 @@ if __name__ == '__main__':
                 }
             }
             return data
+
         return process_fn
+
 
     train_dataset = train_dataset.map(function=make_map_fn('train'), with_indices=True)
     test_dataset = test_dataset.map(function=make_map_fn('test'), with_indices=True)
@@ -89,14 +109,19 @@ if __name__ == '__main__':
     local_dir = os.path.expanduser(args.local_dir)
     os.makedirs(local_dir, exist_ok=True)
 
-    # Save datasets to parquet
-    train_dataset.to_parquet(os.path.join(local_dir, 'train.parquet'))
-    test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
+    # Save datasets to parquet (only save if they have data)
+    if train_size > 0:
+        train_dataset.to_parquet(os.path.join(local_dir, 'train.parquet'))
+        print(f"Saved training dataset with {train_size} samples to {local_dir}/train.parquet")
 
-    print(f"Saved datasets to {local_dir}")
+    if test_size > 0:
+        test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
+        print(f"Saved test dataset with {test_size} samples to {local_dir}/test.parquet")
 
-    # Copy to HDFS if specified
-    if args.hdfs_dir is not None:
+    print(f"Datasets saved to {local_dir}")
+
+    # Copy to HDFS if specified (only if we have at least one dataset)
+    if args.hdfs_dir is not None and (train_size > 0 or test_size > 0):
         makedirs(args.hdfs_dir)
         copy(src=local_dir, dst=args.hdfs_dir)
         print(f"Copied datasets to {args.hdfs_dir}")
