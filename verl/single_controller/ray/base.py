@@ -265,21 +265,21 @@ class RayWorkerGroup(WorkerGroup):
 
                 if rank == 0:
                     # --- BEGIN DEBUG IN IDE ---
-                    # self._master_addr = "127.0.0.1"
-                    # self._master_port = "29500"
-                    # print("Debug mode: using dummy MASTER_ADDR and MASTER_PORT")
+                    self._master_addr = "127.0.0.1"
+                    self._master_port = "29500"
+                    print("Debug mode: using dummy MASTER_ADDR and MASTER_PORT")
                     # --- END DEBUG IN IDE ---
 
-                    register_center_actor = None
-                    for _ in range(120):
-                        if f"{self.name_prefix}_register_center" not in list_named_actors():
-                            time.sleep(1)
-                        else:
-                            register_center_actor = ray.get_actor(f"{self.name_prefix}_register_center")
-                            break
-                    assert register_center_actor is not None, f"failed to get register_center_actor: {self.name_prefix}_register_center in {list_named_actors(all_namespaces=True)}"
-                    rank_zero_info = ray.get(register_center_actor.get_rank_zero_info.remote())
-                    self._master_addr, self._master_port = rank_zero_info['MASTER_ADDR'], rank_zero_info['MASTER_PORT']
+                    # register_center_actor = None
+                    # for _ in range(120):
+                    #     if f"{self.name_prefix}_register_center" not in list_named_actors():
+                    #         time.sleep(1)
+                    #     else:
+                    #         register_center_actor = ray.get_actor(f"{self.name_prefix}_register_center")
+                    #         break
+                    # assert register_center_actor is not None, f"failed to get register_center_actor: {self.name_prefix}_register_center in {list_named_actors(all_namespaces=True)}"
+                    # rank_zero_info = ray.get(register_center_actor.get_rank_zero_info.remote())
+                    # self._master_addr, self._master_port = rank_zero_info['MASTER_ADDR'], rank_zero_info['MASTER_PORT']
                     # print(f"rank_zero_info: {rank_zero_info}")
                     # print(f"master_addr: {self._master_addr}, master_port: {self._master_port}")
 

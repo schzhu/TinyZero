@@ -395,18 +395,19 @@ class RayPPOTrainer(object):
 
         metric_dict = {}
         # --- NEW EXTRA TEST: Next Token "wait" Probability ---
-        # for inst-tuned llm
-        # special_prompt = "<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\nUsing the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>.<|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
-        # for base llm
-        special_prompt = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. User: Using the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>. Assistant: Let me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
-        special_token = "Wait"
-        # If the actor rollout worker is a local function, call it directly.
-        wait_prob = self.actor_rollout_wg.compute_next_token_probability(special_prompt, special_token)
-        wait_prob = np.mean(wait_prob)
-        metric_dict['val/next_token_prob/wait_after_prompt'] = wait_prob
-        print(f"Test: P('{special_token}' | '{special_prompt}') \n= {wait_prob}")
+        # # for inst-tuned llm
+        # # special_prompt = "<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.<|im_end|>\n<|im_start|>user\nUsing the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>.<|im_end|>\n<|im_start|>assistant\nLet me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
+        # # for base llm
+        # special_prompt = "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. User: Using the numbers [81, 68, 12], create an equation that equals 25. You can use basic arithmetic operations (+, -, *, /) and each number can only be used once. Show your work in <think> </think> tags. And return the final answer in <answer> </answer> tags, for example <answer> (1 + 2) / 3 </answer>. Assistant: Let me solve this step by step.\n<think>First, let's try adding the two smaller numbers, 68 + 12, which equals 80. Unfortunately, this doesn't bring us closer to 25. Now, let's try dividing 81 by 12, which gives us 6.75. We can't use quotient operation here so let's try again. If we divide 68 by 12, we get 5.67 which isn't right."
+        # special_token = "Wait"
+        # # If the actor rollout worker is a local function, call it directly.
+        # wait_prob = self.actor_rollout_wg.compute_next_token_probability(special_prompt, special_token)
+        # wait_prob = np.mean(wait_prob)
+        # metric_dict['val/next_token_prob/wait_after_prompt'] = wait_prob
+        # print(f"Test: P('{special_token}' | '{special_prompt}') \n= {wait_prob}")
         # --- END EXTRA TEST ---
 
+        # --- OLD EXTRA TEST: Next Token "wait" Probability ---
         # # --- EXTRA TEST: Compute likelihood of "wait" after a fixed prompt ---
         # extra_prompt = "Here is my first try"
         # # Tokenize the prompt using your existing tokenizer (make sure to adjust for spacing if needed)
@@ -426,6 +427,8 @@ class RayPPOTrainer(object):
         # # (Adjust the target token as needed—for many tokenizers, a leading space is required.)
         # lp_wait = ray.get(self.actor_rollout_wg.compute_next_token_log_prob.remote(extra_dp, " wait"))
         # metric_dict["val/next_token_logprob_wait"] = lp_wait
+        # --- END OLD EXTRA TEST: Next Token "wait" Probability ---
+
 
         reward_tensor_lst = []
         data_source_lst = []

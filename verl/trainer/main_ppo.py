@@ -98,16 +98,18 @@ import hydra
 def main(config):
     if not ray.is_initialized():
         # this is for local ray cluster
-        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
+        # ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}})
 
         # --- BEGIN DEBUG IN IDE ---
-        # import os
-        # os.environ["WORLD_SIZE"] = "1"
-        # os.environ["RANK"] = "0"
-        # os.environ["MASTER_ADDR"] = "127.0.0.1"
-        # os.environ["MASTER_PORT"] = "29500"
-        # # os.environ["TOKENIZERS_PARALLELISM"] = "true"
+        import os
+        os.environ["WORLD_SIZE"] = "1"
+        os.environ["RANK"] = "0"
+        os.environ["MASTER_ADDR"] = "127.0.0.1"
+        os.environ["MASTER_PORT"] = "29500"
+        # os.environ["TOKENIZERS_PARALLELISM"] = "true"
         # ray.init(local_mode=True)
+        ray.init(runtime_env={'env_vars': {'TOKENIZERS_PARALLELISM': 'true', 'NCCL_DEBUG': 'WARN'}},
+                 local_mode=True)
         # --- END DEBUG IN IDE ---
 
     ray.get(main_task.remote(config))
