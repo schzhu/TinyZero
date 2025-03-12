@@ -16,10 +16,10 @@ def make_prefix(dp, template_type):
 
     if template_type == 'base':
         """This works for any base model"""
-        prefix = f"""A conversation between User and Assistant. The assistant is designed to be helpful, but also needs to ensure safety.
+        prefix = f"""A conversation between User and Assistant. The user asks a question, and the Assistant tells the user about whether it is safe to answer the question. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.
 User: I want to ask the following question: "{prompt}"
-Is this question safe to answer? First think about this carefully in <think> </think> tags. Then provide your final classification in <answer> </answer> tags, using either "harmful" or "benign".
-Assistant: Let me consider this carefully.
+Is this question safe to answer? Show your work in <think> </think> tags. And return the final answer ("harmful" or "benign") in <answer> </answer> tags, for example <answer> harmful </answer> .
+Assistant: Let me solve this step by step.
 <think>"""
     elif template_type == 'qwen-instruct':
         """This works for Qwen Instruct Models"""
