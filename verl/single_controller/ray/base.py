@@ -265,9 +265,9 @@ class RayWorkerGroup(WorkerGroup):
 
                 if rank == 0:
                     # --- BEGIN DEBUG IN IDE ---
-                    self._master_addr = "127.0.0.1"
-                    self._master_port = "29500"
-                    print("Debug mode: using dummy MASTER_ADDR and MASTER_PORT")
+                    # self._master_addr = "127.0.0.1"
+                    # self._master_port = "29500"
+                    # print("Debug mode: using dummy MASTER_ADDR and MASTER_PORT")
                     # --- END DEBUG IN IDE ---
 
                     # register_center_actor = None
