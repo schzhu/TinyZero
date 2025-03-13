@@ -429,16 +429,26 @@ class RayPPOTrainer(object):
         # metric_dict["val/next_token_logprob_wait"] = lp_wait
         # --- END OLD EXTRA TEST: Next Token "wait" Probability ---
 
-
         reward_tensor_lst = []
         data_source_lst = []
+        label_lst = []  # New list to track the 'label' for each sample
+
         for test_data in self.val_dataloader:
             test_batch = DataProto.from_single_dict(test_data)
-            # test_batch = test_batch.to('cuda')
 
             # we only do validation on rule-based rm
             if self.config.reward_model.enable and test_batch[0].non_tensor_batch['reward_model']['style'] == 'model':
                 return {}
+
+            # Extract and store the label for each example
+            labels = []
+            for i in range(len(test_batch)):
+                if 'reward_model' in test_batch[i].non_tensor_batch and 'ground_truth' in test_batch[i].non_tensor_batch[
+                    'reward_model']:
+                    labels.append(test_batch[i].non_tensor_batch['reward_model']['ground_truth'].get('label', 'unknown'))
+                else:
+                    labels.append('unknown')
+            label_lst.append(np.array(labels))
 
             test_gen_batch = test_batch.pop(['input_ids', 'attention_mask', 'position_ids'])
             test_gen_batch.meta_info = {
@@ -459,7 +469,6 @@ class RayPPOTrainer(object):
             test_batch = test_batch.union(test_output_gen_batch)
 
             # evaluate using reward_function
-            # for certain reward function (e.g. sandbox), the generation can overlap with reward
             reward_tensor = self.val_reward_fn(test_batch)
 
             reward_tensor_lst.append(reward_tensor)
@@ -467,6 +476,8 @@ class RayPPOTrainer(object):
 
         reward_tensor = torch.cat(reward_tensor_lst, dim=0).sum(-1).cpu()  # (batch_size,)
         data_sources = np.concatenate(data_source_lst, axis=0)
+        labels = np.concatenate(label_lst, axis=0)
+
         # evaluate test_score based on data source
         data_source_reward = {}
         for i in range(reward_tensor.shape[0]):
@@ -475,9 +486,35 @@ class RayPPOTrainer(object):
                 data_source_reward[data_source] = []
             data_source_reward[data_source].append(reward_tensor[i].item())
 
-        # metric_dict = {}
+        # Basic data source metrics (as before)
         for data_source, rewards in data_source_reward.items():
             metric_dict[f'val/test_score/{data_source}'] = np.mean(rewards)
+
+        # NEW: Group by label and evaluate scores separately
+        label_reward = {}
+        for i in range(reward_tensor.shape[0]):
+            label = labels[i]
+            data_source = data_sources[i]
+
+            # Group by label
+            if label not in label_reward:
+                label_reward[label] = []
+            label_reward[label].append(reward_tensor[i].item())
+
+            # Group by both data_source and label
+            combined_key = f"{data_source}_{label}"
+            if combined_key not in label_reward:
+                label_reward[combined_key] = []
+            label_reward[combined_key].append(reward_tensor[i].item())
+
+        # Add the grouped metrics to the metric_dict
+        for label, rewards in label_reward.items():
+            if label in ['benign', 'harmful', 'unknown']:  # Base labels
+                metric_dict[f'val/test_score_by_label/{label}'] = np.mean(rewards)
+            else:  # Combined data_source_label metrics
+                # Only add these if they contain a meaningful label
+                if "_benign" in label or "_harmful" in label:
+                    metric_dict[f'val/test_score_by_source_and_label/{label}'] = np.mean(rewards)
 
         return metric_dict
 
