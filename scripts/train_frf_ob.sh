@@ -1,6 +1,6 @@
 python3 -m verl.trainer.main_ppo \
 algorithm.adv_estimator=grpo \
-data.train_files=$DATA_DIR/train_v2.parquet \
+data.train_files=$DATA_DIR/train_v2_ob.parquet \
 data.val_files=$DATA_DIR/test_v2.parquet \
 data.train_batch_size=128 \
 data.val_batch_size=256 \
