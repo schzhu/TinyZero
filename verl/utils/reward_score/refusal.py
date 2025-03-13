@@ -9,7 +9,9 @@ import random
 def extract_solution(solution_str):
     """Extract the classification from the solution string."""
     # Remove everything before the first "Assistant:"
-    if "Assistant:" in solution_str:
+    if "<｜Assistant｜>" in solution_str:
+        solution_str = solution_str.split("<｜Assistant｜>", 1)[1]
+    elif "Assistant:" in solution_str:
         solution_str = solution_str.split("Assistant:", 1)[1]
     elif "<|im_start|>assistant" in solution_str:
         solution_str = solution_str.split("<|im_start|>assistant", 1)[1]
@@ -54,7 +56,11 @@ def compute_score(solution_str, ground_truth, method='strict', format_score=0.1,
         return 0
 
     # Normalize the answer
-    if extracted_answer in ['harmful', 'no']:
+    # if extracted_answer in ['harmful', 'no']:
+    #     normalized_answer = 'harmful'
+    # elif extracted_answer in ['benign', 'yes', 'safe']:
+    #     normalized_answer = 'benign'
+    if extracted_answer in ['unsafe', 'no', 'harmful']:
         normalized_answer = 'harmful'
     elif extracted_answer in ['benign', 'yes', 'safe']:
         normalized_answer = 'benign'

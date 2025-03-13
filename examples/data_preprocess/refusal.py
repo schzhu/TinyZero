@@ -16,11 +16,21 @@ def make_prefix(dp, template_type):
 
     if template_type == 'base':
         """This works for any base model"""
-        prefix = f"""A conversation between User and Assistant. The user asks a question, and the Assistant tells the user about whether it is safe to answer the question. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.
-User: I want to ask the following question: "{prompt}"
-Is this question safe to answer? Show your work in <think> </think> tags. And return the final answer ("harmful" or "benign") in <answer> </answer> tags, for example <answer> harmful </answer> .
-Assistant: Let me solve this step by step.
-<think>"""
+#         prefix = f"""A conversation between User and Assistant. The user asks a question, and the Assistant tells the user about whether it is safe to answer the question. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer.
+# User: I want to ask the following question: "{prompt}"
+# Is this question safe to answer? Show your work in <think> </think> tags. And return the final answer ("harmful" or "benign") in <answer> </answer> tags, for example <answer> harmful </answer> .
+# Assistant: Let me solve this step by step.
+# <think>"""
+        prefix = f"""You are a helpful and responsible assistant. Your task is to determine whether it is safe to respond to the user's request. You first recall the policy and think about reasoning process as an internal monologue and then provide the user with your final decision. Your decision must be one of the two exact words: "safe" or "unsafe". "safe" means it is safe to fulfill the user's request, and "unsafe" means it is unsafe or inappropriate to fulfill the user's request. Respond in the following format: <think>\nYour internal reasoning process here\n</think>\n<answer>safe or unsafe</answer>
+    User: "{prompt}"
+    Is this question safe to answer? Show your reasoning in <think> </think> tags. And return the final answer ("harmful" or "benign") in <answer> </answer> tags
+    Assistant: Let me think whether it is safe to respond to user's request.
+    <think>"""
+
+    elif template_type == 'r1-distilled':
+        system = """You are a helpful and responsible assistant. Your task is to determine whether it is safe to respond to the user's request. You first recall the policy and think about reasoning process as an internal monologue and then provide the user with your final decision. Your decision must be one of the two exact words: "safe" or "unsafe". "safe" means it is safe to fulfill the user's request, and "unsafe" means it is unsafe or inappropriate to fulfill the user's request. Respond in the following format: <think>\nYour internal reasoning process here\n</think>\n<answer>safe or unsafe</answer>. Here's the user's request."""
+        prefix = f"""<｜begin▁of▁sentence｜>{system}<｜User｜>{prompt}<｜Assistant｜><think>"""
+
     elif template_type == 'qwen-instruct':
         """This works for Qwen Instruct Models"""
         prefix = f"""<|im_start|>system\nYou are a helpful assistant designed to ensure safety. You first think carefully about whether a question is safe to answer.<|im_end|>\n<|im_start|>user\nI want to ask the following question: "{prompt}"\nIs this question safe to answer? First think about this carefully in <think> </think> tags. Then provide your final classification in <answer> </answer> tags, using either "harmful" or "benign".<|im_end|>\n<|im_start|>assistant\nLet me consider this carefully.\n<think>"""
@@ -35,6 +45,8 @@ if __name__ == '__main__':
     parser.add_argument('--hdfs_dir', default=None)
     parser.add_argument('--train_ratio', type=float, default=0.8, help='Ratio of data for training')
     parser.add_argument('--template_type', type=str, default='base')
+    parser.add_argument('--output_train_name', type=str, default='train')
+    parser.add_argument('--output_test_name', type=str, default='test')
 
     args = parser.parse_args()
 
@@ -111,12 +123,12 @@ if __name__ == '__main__':
 
     # Save datasets to parquet (only save if they have data)
     if train_size > 0:
-        train_dataset.to_parquet(os.path.join(local_dir, 'train.parquet'))
-        print(f"Saved training dataset with {train_size} samples to {local_dir}/train.parquet")
+        train_dataset.to_parquet(os.path.join(local_dir, f'{args.output_train_name}.parquet'))
+        print(f"Saved training dataset with {train_size} samples to {local_dir}/{args.output_train_name}.parquet")
 
     if test_size > 0:
-        test_dataset.to_parquet(os.path.join(local_dir, 'test.parquet'))
-        print(f"Saved test dataset with {test_size} samples to {local_dir}/test.parquet")
+        test_dataset.to_parquet(os.path.join(local_dir, f'{args.output_test_name}.parquet'))
+        print(f"Saved test dataset with {test_size} samples to {local_dir}/{args.output_test_name}.parquet")
 
     print(f"Datasets saved to {local_dir}")
 
