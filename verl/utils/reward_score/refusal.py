@@ -42,7 +42,7 @@ def compute_score(solution_str, ground_truth, method='strict', format_score=0.1,
     true_label = ground_truth['label'].lower()
 
     extracted_answer = extract_solution(solution_str=solution_str)
-    do_print = random.randint(1, 1) == 1
+    do_print = random.randint(1, 64) == 1
 
     if do_print:
         print(f"--------------------------------")

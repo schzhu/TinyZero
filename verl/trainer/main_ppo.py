@@ -17,7 +17,7 @@ Note that we don't combine the main with ray_trainer as ray_trainer is used by o
 
 from verl import DataProto
 import torch
-from verl.utils.reward_score import gsm8k, math, multiply, countdown, refusal
+from verl.utils.reward_score import gsm8k, math, multiply, countdown, refusal, word_count
 from verl.trainer.ppo.ray_trainer import RayPPOTrainer
 
 
@@ -31,7 +31,9 @@ def _select_rm_score_fn(data_source):
     elif "countdown" in data_source:
         return countdown.compute_score
     elif "safety" in data_source:
-        return refusal.compute_score  # Add this line
+        return refusal.compute_score
+    elif "word_count" in data_source:
+        return word_count.compute_score
     else:
         raise NotImplementedError
 
